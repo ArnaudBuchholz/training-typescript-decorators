@@ -1,0 +1,26 @@
+{
+  "name": "training-typescript-decorators",
+  "version": "1.0.0",
+  "description": "An example of Typescript decorators",
+  "scripts": {
+    "start": "ts-node src/index.ts"
+  },
+  "keywords": [
+    "training",
+    "typescript",
+    "decorator"
+  ],
+  "author": "Arnaud Buchholz",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ArnaudBuchholz/training-typescript-decorators/issues"
+  },
+  "homepage": "https://github.com/ArnaudBuchholz/training-typescript-decorators#readme",
+  "devDependencies": {
+    "typescript": "^4.5.2"
+  },
+  "dependencies": {
+    "reserve": "^1.12.1",
+    "ts-node": "^10.4.0"
+  }
+}
