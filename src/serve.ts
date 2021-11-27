@@ -3,29 +3,53 @@ import { IncomingMessage, ServerResponse } from 'http'
 
 const endpoints = Symbol()
 
-/*
-interface ParameterMapping {
-  
+enum ParameterMappingType {
+  capturingGroup,
+  request,
+  response
 }
-*/
 
-interface Mapping {
+interface ParameterMapping {
+  index: number
+  type: ParameterMappingType
+  $: number
+}
+
+interface UrlMapping {
+  propertyKey: string
   method: string
   url: RegExp
-  propertyKey: string
+}
+
+interface EndpointMapping extends UrlMapping {
+  parameters: ParameterMapping[]
 }
 
 interface ControllerPrototype {
-  [endpoints]?: Mapping[]
+  [endpoints]?: EndpointMapping[]
 }
 
-function addEndpointMapping (prototype: ControllerPrototype, mapping: Mapping) {
+function getEndpointMapping (prototype: ControllerPrototype, propertyKey: string): EndpointMapping {
   let mappings = prototype[endpoints]
   if (mappings === undefined) {
     mappings = []
     prototype[endpoints] = mappings
   }
-  mappings.push(mapping)
+  let mapping: EndpointMapping = mappings.filter(candidate => candidate.propertyKey === propertyKey)[0]
+  if (mapping === undefined) {
+    mapping = {
+      method: 'GET',
+      url: /.*/,
+      propertyKey,
+      parameters: []
+    }
+    mappings.push(mapping)
+  }
+  return mapping
+}
+
+function addEndpointMapping (prototype: ControllerPrototype, mapping: UrlMapping) {
+  Object.assign(getEndpointMapping(prototype, mapping.propertyKey), mapping)
 }
 
 export function get (url: RegExp) {
@@ -34,13 +58,38 @@ export function get (url: RegExp) {
   }
 }
 
-/*
-export function param (name: string) {
-  return function (target: any, propertyKey: string, index: number) {
-    addParameterMapping(target, { index, mapping: name, propertyKey })
+export function $ (capturingGroup: number) {
+  return function (prototype: any, propertyKey: string, index: number) {
+    const mapping = getEndpointMapping(prototype, propertyKey)
+    mapping.parameters.push({
+      index,
+      type: ParameterMappingType.capturingGroup,
+      $: capturingGroup
+    })
   }
 }
-*/
+
+export function request () {
+  return function (prototype: any, propertyKey: string, index: number) {
+    const mapping = getEndpointMapping(prototype, propertyKey)
+    mapping.parameters.push({
+      index,
+      type: ParameterMappingType.request,
+      $: 0
+    })
+  }
+}
+
+export function response () {
+  return function (prototype: any, propertyKey: string, index: number) {
+    const mapping = getEndpointMapping(prototype, propertyKey)
+    mapping.parameters.push({
+      index,
+      type: ParameterMappingType.response,
+      $: 0
+    })
+  }
+}
 
 export async function serve (Controller: new () => object) {
   const configuration: Configuration = {
@@ -51,12 +100,24 @@ export async function serve (Controller: new () => object) {
   const prototype = Controller.prototype as ControllerPrototype
   const mappings = prototype[endpoints]
   if (mappings !== undefined) {
-    configuration.mappings = mappings.map(({ method, url, propertyKey }): CustomMapping => {
+    configuration.mappings = mappings.map(({ method, url, propertyKey, parameters }): CustomMapping => {
       return {
         method,
         match: url,
-        custom: async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
-          const result = (await instance[propertyKey]()) as string
+        custom: async (request: IncomingMessage, response: ServerResponse, ...capturingGroups: string[]): Promise<void> => {
+          const args: any[] = []
+          parameters.forEach(({ index, type, $ }) => {
+            let parameter
+            if (type === ParameterMappingType.capturingGroup) {
+              parameter = capturingGroups[$ - 1]
+            } else if (type === ParameterMappingType.request) {
+              parameter = request
+            } else if (type === ParameterMappingType.response) {
+              parameter = response
+            }
+            args[index] = parameter
+          })
+          const result = (await instance[propertyKey](...args)) as string
           response.writeHead(200, {
             'content-type': 'text/plain',
             'content-length': result.length
