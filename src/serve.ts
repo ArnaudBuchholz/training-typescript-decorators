@@ -4,9 +4,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 const endpoints = Symbol()
 
 enum ParameterMappingType {
-  capturingGroup,
-  request,
-  response
+  capturingGroup
 }
 
 interface ParameterMapping {
@@ -69,28 +67,6 @@ export function $ (capturingGroup: number) {
   }
 }
 
-export function request () {
-  return function (prototype: any, propertyKey: string, index: number) {
-    const mapping = getEndpointMapping(prototype, propertyKey)
-    mapping.parameters.push({
-      index,
-      type: ParameterMappingType.request,
-      $: 0
-    })
-  }
-}
-
-export function response () {
-  return function (prototype: any, propertyKey: string, index: number) {
-    const mapping = getEndpointMapping(prototype, propertyKey)
-    mapping.parameters.push({
-      index,
-      type: ParameterMappingType.response,
-      $: 0
-    })
-  }
-}
-
 export async function serve (Controller: new () => object) {
   const configuration: Configuration = {
     port: 8080,
@@ -110,10 +86,6 @@ export async function serve (Controller: new () => object) {
             let parameter
             if (type === ParameterMappingType.capturingGroup) {
               parameter = capturingGroups[$ - 1]
-            } else if (type === ParameterMappingType.request) {
-              parameter = request
-            } else if (type === ParameterMappingType.response) {
-              parameter = response
             }
             args[index] = parameter
           })
