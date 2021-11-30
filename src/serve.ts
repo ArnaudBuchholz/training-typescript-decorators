@@ -49,12 +49,12 @@ function getEndpointMapping (prototype: ControllerPrototype, propertyKey: string
 }
 
 function addEndpointMapping (prototype: ControllerPrototype, mapping: UrlMapping) {
-  Object.assign(getEndpointMapping(prototype, mapping.propertyKey), mapping)
+  
 }
 
 export function get (url: RegExp) {
   return function (prototype: any, propertyKey: string, descriptor: PropertyDescriptor) {
-    addEndpointMapping(prototype, { method: 'GET', url, propertyKey })
+    Object.assign(getEndpointMapping(prototype, propertyKey), { method: 'GET', url, propertyKey })
   }
 }
 
